@@ -1,5 +1,3 @@
-# REPO UNDER CONSTRUCTION
-
 <div align="center">
     <img src="https://serancon.de/wp-content/uploads/2022/03/logo.png" alt="Logo" style="width:50%;">
 </div>
@@ -14,7 +12,7 @@
 
 </div>
 
-Dieses Python-Skript empfängt diverse Daten (Temperatur, Luftfeuchtigkeit,- und Batterie Signalstärke) von Shelly-Sensoren über MQTT und speichert die aktuellen Werte als JSON-Dateien im Verzeichnis /tmp/. Die Daten werden anhand der MAC-Adresse des jeweiligen Shelly-Sensors identifiziert.
+Das Skript ist ein MQTT-Listener, der Daten (Temperatur, Luftfeuchtigkeit,- und Batterie Signalstärke) von Shelly-Sensoren (Shelly H&T Gen3 ) über MQTT empfängt, verarbeitet und in einer JSON-Datei speichert. Es sorgt dafür, dass die letzten bekannten Sensordaten nicht verloren gehen, falls ein neuer Wert fehlt. Die Daten werden anhand der MAC-Adresse bzw. Geräte-ID des jeweiligen Shelly-Sensors identifiziert.
 
 
 ![GitHub issues](https://img.shields.io/github/issues/Individuum92/check_mk)
@@ -24,42 +22,111 @@ Dieses Python-Skript empfängt diverse Daten (Temperatur, Luftfeuchtigkeit,- und
 
 ## Sprachen und Technologien
 
-![Bash](https://img.shields.io/badge/Bash-4EAA25?style=for-the-badge&logo=gnu-bash&logoColor=white) ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white) 
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white) 
 
 ![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black) ![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-A22846?style=for-the-badge&logo=raspberry-pi&logoColor=white)
 
 <br>
 
-## Hauptfunktionen
-#### Verbindung zum MQTT-Broker aufbauen
+### Grundlegende Funktionen des Skripts
 
-Stellt eine Verbindung zum MQTT-Broker (localhost:1883) her.
-Abonniert das Topic shelly/#, um alle relevanten Shelly-Nachrichten zu empfangen.
+✔ Verbindet sich mit einem MQTT-Broker (standardmäßig localhost:1883)  
+✔ Abonniert alle MQTT-Nachrichten vom Topic `shelly/#`    
+✔ Extrahiert Sensordaten (Temperatur, Luftfeuchtigkeit, Batteriestatus, WLAN-Signalstärke)  
+✔ Speichert Sensordaten in JSON-Dateien unter `/tmp/shelly_environment_<Raum>.json`  
+✔ Stellt sicher, dass alte Werte erhalten bleiben, wenn ein Sensor einen Wert nicht sendet  
 
-#### Empfangene MQTT-Nachrichten verarbeiten
+Stellt eine Verbindung zum MQTT-Broker (localhost:1883) her und abonniert das Topic `shelly/#`, um alle relevanten Shelly-Nachrichten zu empfangen empfängt alle Subtopics wie `shelly/device1/sensor`.
+Ordnet MAC-Adressen von Shelly-Sensoren bestimmten Räumen zu, z. B. "e4b3232fe214" → "Büro".
 
-Liest und dekodiert die JSON-Daten der Shelly-Sensoren.
-Extrahiert die MAC-Adresse aus der Nachricht.
-Falls die MAC-Adresse in der bekannten Mapping-Liste (SHELLY_NAME_MAPPING) enthalten ist, wird der Sensor identifiziert.
+<br>
 
-#### Relevante Sensordaten aus der JSON-Nachricht extrahieren
+### Relevante Sensordaten aus der JSON-Nachricht
 
 Temperatur (tC)
 Luftfeuchtigkeit (rh)
 Batterieladestand (battery.percent)
 WLAN-Signalstärke (wifi.rssi)
 
-#### Fehlende Werte aus vorherigen Messungen übernehmen
+<br>
+
+### Fehlende Werte aus vorherigen Messungen übernehmen
 
 Falls ein Wert in der aktuellen Nachricht fehlt, wird der zuletzt gespeicherte Wert aus der entsprechenden JSON-Datei (/tmp/shelly_environment_<Raum>.json) verwendet.
 
-#### Daten als JSON speichern
+<br>
 
-Die Messwerte und der aktuelle Zeitstempel (timestamp) werden in einer JSON-Datei abgelegt, um spätere Abfragen zu ermöglichen.
+### Als Service einrichten
 
-#### Dauerhafte MQTT-Schleife zur Verarbeitung neuer Nachrichten
+Um den Broker als Dienst im Hintergrund laufen zu lassen, kann ein Dienst eingerichtet werden:
+`nano /etc/systemd/system/shelly_mqtt.service`
 
-Das Skript bleibt kontinuierlich aktiv und verarbeitet alle eintreffenden MQTT-Nachrichten.
+```
+[Unit]
+Description=Shelly MQTT Listener
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /pfad/zum/skript/shelly_mqtt.py
+WorkingDirectory=/
+Restart=always
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Als Service aktivieren, sodass auch bei einem Neustart des Systems der Service automatisch startet.
+```
+sudo systemctl daemon-reload
+sudo systemctl enable shelly_mqtt.service
+sudo systemctl start shelly_mqtt.service
+```
+
+Falls du sehen möchtest, ob der Dienst läuft bzw. es Fehler gibt:
+`sudo systemctl status shelly_mqtt.service`
+
+<br>
+
+### Inbetriebnahme auf einem Raspberry-Pi
+
+Getestet und produktiv genommen wurde das Skript auf einem Raspi 5. Die sauberste Lösung ist, eine virtuelle Umgebung für das ausführen der Skriptes zu erstellen, um die notwendigen Voraussezungen nicht Systemweit zu installieren.  
+
+🔹 Vorteil: Keine Konflikte mit systemweiten Python-Paketen  
+🔹 Nachteil: Du musst die Umgebung jedes Mal aktivieren, bevor du dein Skript ausführst  
+
+
+Das geht schnell und einfach wie folgt:
+
+```
+python3 -m venv ~/mqtt_env
+source ~/mqtt_env/bin/activate
+pip install paho-mqtt
+```
+
+<br>
+
+**Eine kurze Erläuterung dazu:**
+
+*python3 -m venv ~/mqtt_env*  
+🔹 Erstellt eine virtuelle Python-Umgebung namens mqtt_env im Home-Verzeichnis ~/  
+🔹 Eine virtuelle Umgebung (venv) isoliert Python-Pakete von der systemweiten Installation  
+🔹 Dadurch werden Abhängigkeiten nur in dieser Umgebung installiert, ohne das System zu verändern  
+🔹 Das Verzeichnis ~/mqtt_env/ enthält die isolierte Python-Installation  
+
+*source ~/mqtt_env/bin/activate*  
+🔹 Aktiviert die virtuelle Umgebung mqtt_env  
+🔹 Danach nutzt das Terminal diese Umgebung für Python und pip, statt die systemweite Installation  
+🔹 In der Eingabeaufforderung erscheint (mqtt_env), um anzuzeigen, dass die Umgebung aktiv ist  
+🔹 Solange die Umgebung aktiv ist, wird python aus ~/mqtt_env/bin/python verwendet  
+
+*pip install paho-mqtt*  
+🔹 Installiert das Paket paho-mqtt nur in der virtuellen Umgebung  
+🔹 paho-mqtt ist die Python-Bibliothek für die MQTT-Kommunikation  
+🔹 Diese Installation betrifft nur ~/mqtt_env/, nicht das gesamte System  
+
+Info: Um die Virtuelle Umgebung zu verlassen, einfach `deavtivate` in die Konsole eingeben. 
 
 <br>
 
@@ -69,15 +136,4 @@ Das Skript bleibt kontinuierlich aktiv und verarbeitet alle eintreffenden MQTT-N
 [![GitHub forks](https://img.shields.io/github/forks/Individuum92/check_mk?style=for-the-badge)](https://github.com/Individuum92/check_mk/network/members)
 [![GitHub watchers](https://img.shields.io/github/watchers/Individuum92/check_mk?style=for-the-badge)](https://github.com/Individuum92/check_mk/watchers)
 
-<br>
-
-## ToDo
-
-- [X] Ordnerstruktur überarbeiten, sodass standardisierte Parameter bestehen (für Logs, Arbeitsdateien und etc.)
-- [ ] Eindeutigkeit in die Servicenamen einbinden (Serancon {SERVICE NAME}), um z.B. Gruppierungen vornehmen zu können
-- [X] Extensions an alle Skripte hängen sodass erkennbar ist, in welcher Sprache das Skript vorliegt
-- [ ] Umlaute anpassen (Ä,Ö,Ü)
-- [ ] Update Automatismus der README-Datei einbinden
-- [ ] Die jeweiligen Voraussetzungen der Skripte beschreiben
-- [ ] DE / EN Versionen
 
