@@ -14,7 +14,8 @@
 
 </div>
 
-Dieses Python-Skript empfängt Umweltdaten (Temperatur, Luftfeuchtigkeit, -und Batterie Signalstärke) von Shelly-Sensoren über MQTT und speichert die aktuellen Werte als JSON-Dateien im Verzeichnis /tmp/. Die Daten werden anhand der MAC-Adresse des jeweiligen Shelly-Sensors identifiziert und einem benutzerfreundlichen Namen (z. B. „Büro“, „Wohnzimmer“) zugeordnet.
+Dieses Python-Skript empfängt diverse Daten (Temperatur, Luftfeuchtigkeit,- und Batterie Signalstärke) von Shelly-Sensoren über MQTT und speichert die aktuellen Werte als JSON-Dateien im Verzeichnis /tmp/. Die Daten werden anhand der MAC-Adresse des jeweiligen Shelly-Sensors identifiziert.
+
 
 ![GitHub issues](https://img.shields.io/github/issues/Individuum92/check_mk)
  ![GitHub last commit](https://img.shields.io/github/last-commit/Individuum92/check_mk) ![GitHub repo size](https://img.shields.io/github/repo-size/Individuum92/check_mk)
