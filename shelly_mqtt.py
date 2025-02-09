@@ -17,7 +17,8 @@ SHELLY_NAME_MAPPING = {
     "e4b3232fe214": "Büro",
     "8cbfeaa5ed1c": "Wohnzimmer",
     "8cbfeaa542d8": "Badezimmer",
-    "e4b32331b14c": "Schlafzimmer"
+    "e4b32331b14c": "Schlafzimmer",
+    "34b7da8cfe90": "Balkon"
 }
 
 # Funktion zum Laden der letzten bekannten Werte
@@ -30,7 +31,7 @@ def load_last_values(data_file):
             return {"temperature": None, "humidity": None, "battery": None, "wifi_signal": None, "timestamp": None}
     return {"temperature": None, "humidity": None, "battery": None, "wifi_signal": None, "timestamp": None}
 
-# Funktion zum Rekursiven Suchen nach relevanten Werten
+# Funktion zur Suche nach Sensorwerten
 def find_sensor_data(data):
     result = {"temperature": None, "humidity": None, "battery": None, "wifi_signal": None}
 
@@ -86,6 +87,7 @@ def on_message(client, userdata, msg):
         last_values = load_last_values(data_file)
         sensor_data = find_sensor_data(payload)
 
+        # Falls keine neuen Werte gefunden wurden, nimm die letzten bekannten Werte
         if sensor_data["temperature"] is None:
             sensor_data["temperature"] = last_values["temperature"]
         if sensor_data["humidity"] is None:
@@ -97,8 +99,11 @@ def on_message(client, userdata, msg):
 
         timestamp = int(time.time())
 
-        with open(data_file, "w") as f:
-            json.dump({"timestamp": timestamp, **sensor_data}, f)
+        try:
+            with open(data_file, "w") as f:
+                json.dump({"timestamp": timestamp, **sensor_data}, f)
+        except Exception as e:
+            pass
 
     except json.JSONDecodeError:
         pass
